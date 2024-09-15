@@ -88,3 +88,7 @@ if __name__ == '__main__':
     )
 
     trainer.train()
+    trainer.save_model("./final_model")
+    # 训练结束后，进行最终评估
+    eval_results = trainer.evaluate()
+    print(eval_results)
