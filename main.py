@@ -3,6 +3,8 @@ from modeling_cls import CustomModel
 import torch.nn.functional as F
 from transformers import Trainer, TrainingArguments
 import torch
+import numpy as np
+from sklearn.metrics import f1_score
 
 
 def collate_fn(examples):
@@ -23,8 +25,27 @@ class MyTrainer(Trainer):
         target = inputs["labels"]
         outputs = model(pix_values, text)
         loss = F.binary_cross_entropy(outputs, target)
-
         return (loss, outputs) if return_outputs else loss
+
+
+    def prediction_step(self, model, inputs, prediction_loss_only,ignore_keys):
+        with torch.no_grad():
+            logits = model(inputs["x"])
+            labels = inputs["labels"]
+            loss = F.binary_cross_entropy(logits, labels)
+        return loss, logits, labels
+
+
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred.predictions, eval_pred.label_ids
+    predictions = []
+    for i in logits:
+        if i >0.5:
+            predictions.append(1)
+        else:
+            predictions.append(0)
+    f1 = f1_score(labels, predictions, average='binary')  # 或者 'macro' 或 'weighted'，取决于你的需求
+    return {"f1": f1}
 
 
 if __name__ == '__main__':
@@ -44,7 +65,8 @@ if __name__ == '__main__':
         learning_rate=1e-4,
         per_device_train_batch_size=128,
         num_train_epochs=1,
-        evaluation_strategy="epoch",
+        evaluation_strategy="steps",
+        eval_steps=5,
         remove_unused_columns=False,
         bf16=True,
         warmup_steps=200,
@@ -60,6 +82,7 @@ if __name__ == '__main__':
         train_dataset=custom_dataset,
         eval_dataset=test_dataset,
         data_collator=collate_fn,
+        compute_metrics=compute_metrics
     )
 
     trainer.train()
