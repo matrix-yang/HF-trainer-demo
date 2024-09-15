@@ -30,8 +30,10 @@ class MyTrainer(Trainer):
 
     def prediction_step(self, model, inputs, prediction_loss_only,ignore_keys):
         with torch.no_grad():
-            logits = model(inputs["x"])
+            pix_values = inputs["x"]
+            text = inputs["input_dict"]
             labels = inputs["labels"]
+            logits = model(pix_values, text)
             loss = F.binary_cross_entropy(logits, labels)
         return loss, logits, labels
 
